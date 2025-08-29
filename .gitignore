@@ -1,0 +1,9 @@
+# Patterns of intentionally untracked files that Git should ignore
+
+# Build binary
+Jamora
+
+# Devenv and direnv
+.devenv*
+devenv.local.nix
+.direnv
