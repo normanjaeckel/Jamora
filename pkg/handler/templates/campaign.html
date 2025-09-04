@@ -1,0 +1,23 @@
+{{define "list"}}
+<div id="campaigns">
+    <button hx-get="/campaign/create-form" hx-swap="outerHTML">
+        Neue Kampagne
+    </button>
+    <ul>
+        {{range $index, $element := .}}
+        <li>
+            {{$element.Title}}
+            <small>{{$element.Description}}</small> [{{$index}}]
+        </li>
+        {{end}}
+    </ul>
+</div>
+{{end}} {{define "create form"}}
+<form hx-post="/campaign" hx-target="#campaigns" hx-swap="#campaigns">
+    <label for="new-campaign-title">Titel</label>
+    <input id="new-campaign-title" type="text" name="title" required />
+    <label for="new-campaign-description">Beschreibung</label>
+    <input id="new-campaign-description" type="text" name="description" />
+    <input type="submit" />
+</form>
+{{end}}
