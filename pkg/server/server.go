@@ -13,14 +13,10 @@ import (
 	"github.com/normanjaeckel/Jamora/pkg/model"
 )
 
-func registerHandler(mux *http.ServeMux, pattern string, handler func(http.ResponseWriter, *http.Request)) {
-	mux.HandleFunc(pattern, handler)
-}
-
 func Run(ctx context.Context) error {
+	// Config
 	addr := ":8080"
 	dbFile := "database.sqlite"
-	mux := http.NewServeMux()
 
 	db, err := sql.Open("sqlite", dbFile)
 	if err != nil {
@@ -37,24 +33,20 @@ func Run(ctx context.Context) error {
 		return fmt.Errorf("create table: %w", err)
 	}
 
-	registerHandler(mux, "GET /{$}", handler.MainPage)
-	registerHandler(mux, "GET /assets/htmx.min.js", handler.Htmx)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /{$}", handler.MainPage)
+	mux.HandleFunc("GET /assets/htmx.min.js", handler.Htmx)
 
 	campaignHandler := handler.NewCampaignHandler(ctx, db)
-
-	// if _, ok := req.Header[http.CanonicalHeaderKey("HX-Request")]; !ok {
-	// 	MainPage(w, req)
-	// 	return
-	// }
-
-	registerHandler(mux, "GET /campaign", campaignHandler.List)
-	registerHandler(mux, "GET /campaign/create-form", campaignHandler.CreateForm)
-	registerHandler(mux, "POST /campaign", campaignHandler.Create)
-	registerHandler(mux, "GET /campaign/{id}", campaignHandler.Detail)
-	registerHandler(mux, "GET /campaign/{id}/update", http.NotFound)
-	registerHandler(mux, "POST /campaign/{id}", http.NotFound)
-	registerHandler(mux, "GET /campaign/{id}/delete", http.NotFound)
-	registerHandler(mux, "DELETE /campaign/{id}", http.NotFound)
+	mux.HandleFunc("GET /campaign", hxHandler(campaignHandler.List))
+	mux.HandleFunc("GET /campaign/create-form", hxHandler(campaignHandler.CreateForm))
+	mux.HandleFunc("POST /campaign", hxHandler(campaignHandler.Create))
+	mux.HandleFunc("GET /campaign/{id}", hxHandler(campaignHandler.Detail))
+	mux.HandleFunc("GET /campaign/{id}/update-form", hxHandler(campaignHandler.UpdateForm))
+	mux.HandleFunc("POST /campaign/{id}", hxHandler(http.NotFound))
+	mux.HandleFunc("GET /campaign/{id}/delete-form", hxHandler(http.NotFound))
+	mux.HandleFunc("DELETE /campaign/{id}", hxHandler(http.NotFound))
 
 	// mux.HandleFunc("GET /class/{id}", http.NotFound)
 	// mux.HandleFunc("GET /class/new", http.NotFound)
@@ -118,4 +110,14 @@ func Run(ctx context.Context) error {
 		return fmt.Errorf("listen and serve: %w", err)
 	}
 	return <-shutdownResult
+}
+
+func hxHandler(handlerFn func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if _, ok := req.Header[http.CanonicalHeaderKey("HX-Request")]; !ok {
+			http.Redirect(w, req, "/", http.StatusFound)
+			return
+		}
+		handlerFn(w, req)
+	}
 }

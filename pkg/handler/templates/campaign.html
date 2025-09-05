@@ -17,15 +17,42 @@
     </ul>
 </div>
 {{end}} {{define "create form"}}
-<form hx-post="/campaign" hx-target="#campaigns" hx-swap="#campaigns">
+<form hx-post="/campaign" hx-target="#campaigns" hx-swap="outerHTML">
     <label for="new-campaign-title">Titel</label>
     <input id="new-campaign-title" type="text" name="title" required />
     <label for="new-campaign-description">Beschreibung</label>
     <input id="new-campaign-description" type="text" name="description" />
     <input type="submit" />
 </form>
-{{end}} {{ define "detail"}}
+{{end}} {{define "detail"}}
 <div id="campaign-detail">
     <h2>Kampagne {{.Title}}</h2>
+    <p>{{.Description}}</p>
+    <button hx-get="/campaign/{{.Id}}/update-form" hx-swap="outerHTML">
+        Kampagne bearbeiten
+    </button>
 </div>
+{{end}} {{define "update form"}}
+<form
+    hx-post="/campaign/{{.Id}}"
+    hx-target="#campaign-detail"
+    hx-swap="outerHTML"
+>
+    <label for="update-campaign-title">Titel</label>
+    <input
+        id="update-campaign-title"
+        type="text"
+        name="title"
+        value="{{.Title}}"
+        required
+    />
+    <label for="update-campaign-description">Beschreibung</label>
+    <input
+        id="update-campaign-description"
+        type="text"
+        name="description"
+        value="{{.Description}}"
+    />
+    <input type="submit" />
+</form>
 {{end}}

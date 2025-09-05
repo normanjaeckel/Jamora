@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
 	"html/template"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/normanjaeckel/Jamora/pkg/model"
 )
@@ -48,23 +48,11 @@ func NewCampaignHandler(ctx context.Context, db *sql.DB) CampaignHandler {
 }
 
 func (h *CampaignHandler) List(w http.ResponseWriter, req *http.Request) {
-	rows, err := h.db.QueryContext(h.ctx, "SELECT id, title, description FROM campaigns")
+	campaigns, err := model.CampaignGetAll(h.ctx, h.db)
 	if err != nil {
-		log.Printf("Error: Select campaings from database: %v\n", err)
+		log.Printf("Error: Campaign list handler: %v\n", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
-	}
-	defer rows.Close()
-
-	var campaigns []model.Campaign
-	for rows.Next() {
-		var c model.Campaign
-		if err := rows.Scan(&c.Id, &c.Title, &c.Description); err != nil {
-			log.Printf("Error: Scan campaigns from database query response: %v\n", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-		campaigns = append(campaigns, c)
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -105,28 +93,38 @@ func (h *CampaignHandler) Create(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *CampaignHandler) Detail(w http.ResponseWriter, req *http.Request) {
-
-	id, err := strconv.Atoi(req.PathValue("id"))
+	campaign, err := model.CampaignGet(h.ctx, h.db, req.PathValue("id"))
 	if err != nil {
-		http.Error(w, "Invalid campaign id", http.StatusBadRequest)
-		return
-	}
-
-	row := h.db.QueryRowContext(h.ctx, "SELECT id, title, description FROM campaigns WHERE id=$1", id)
-
-	var c model.Campaign
-	if err := row.Scan(&c.Id, &c.Title, &c.Description); err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "Unknown campaign id", http.StatusBadRequest)
+		if errors.Unwrap(err) == sql.ErrNoRows {
+			http.Error(w, "Invalid or unknown campaign id", http.StatusBadRequest)
 			return
 		}
-		log.Printf("Error: Scan campaigns from database query response: %v\n", err)
+		log.Printf("Error: Campaign detail handler: %v\n", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	if err := h.t.ExecuteTemplate(w, "detail", c); err != nil {
+	if err := h.t.ExecuteTemplate(w, "detail", campaign); err != nil {
+		log.Printf("Error: Execute template: %v\n", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+func (h *CampaignHandler) UpdateForm(w http.ResponseWriter, req *http.Request) {
+	campaign, err := model.CampaignGet(h.ctx, h.db, req.PathValue("id"))
+	if err != nil {
+		if errors.Unwrap(err) == sql.ErrNoRows {
+			http.Error(w, "Unknown campaign id", http.StatusBadRequest)
+			return
+		}
+		log.Printf("Error: Campaign detail handler: %v\n", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	if err := h.t.ExecuteTemplate(w, "update form", campaign); err != nil {
 		log.Printf("Error: Execute template: %v\n", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
