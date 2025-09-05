@@ -1,13 +1,17 @@
 {{define "list"}}
 <div id="campaigns">
+    <h2>Kampagnen</h2>
     <button hx-get="/campaign/create-form" hx-swap="outerHTML">
         Neue Kampagne
     </button>
     <ul>
-        {{range $index, $element := .}}
+        {{range .}}
         <li>
-            {{$element.Title}}
-            <small>{{$element.Description}}</small> [{{$index}}]
+            {{.Title}}
+            <small>{{.Description}}</small>
+            <button hx-get="/campaign/{{.Id}}" hx-target="#main">
+                Zur Kampagne
+            </button>
         </li>
         {{end}}
     </ul>
@@ -20,4 +24,8 @@
     <input id="new-campaign-description" type="text" name="description" />
     <input type="submit" />
 </form>
+{{end}} {{ define "detail"}}
+<div id="campaign-detail">
+    <h2>Kampagne {{.Title}}</h2>
+</div>
 {{end}}

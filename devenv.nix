@@ -21,4 +21,14 @@
     echo "Running tests"
     git --version | grep --color=auto "${pkgs.git.version}"
   '';
+
+  tasks = {
+    "app:build" = {
+      description = "Build the binary with 'go build'.";
+      exec = "go build";
+      execIfModified = [
+        "pkg"
+      ];
+    };
+  };
 }

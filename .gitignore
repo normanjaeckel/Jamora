@@ -3,6 +3,9 @@
 # Build binary
 Jamora
 
+# Database
+database.sqlite
+
 # Devenv and direnv
 .devenv*
 devenv.local.nix

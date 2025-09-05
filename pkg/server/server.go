@@ -2,9 +2,12 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+
+	_ "modernc.org/sqlite"
 
 	"github.com/normanjaeckel/Jamora/pkg/handler"
 	"github.com/normanjaeckel/Jamora/pkg/model"
@@ -16,13 +19,28 @@ func registerHandler(mux *http.ServeMux, pattern string, handler func(http.Respo
 
 func Run(ctx context.Context) error {
 	addr := ":8080"
+	dbFile := "database.sqlite"
 	mux := http.NewServeMux()
-	m := model.Model{42: model.Campaign{Title: "Kampagne A+", Description: "Wichtig"}}
+
+	db, err := sql.Open("sqlite", dbFile)
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer db.Close()
+
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("ping database: %w", err)
+	}
+
+	createTablesQuery := model.CampaignTableQuery + model.GroupTableQuery
+	if _, err := db.ExecContext(ctx, createTablesQuery); err != nil {
+		return fmt.Errorf("create table: %w", err)
+	}
 
 	registerHandler(mux, "GET /{$}", handler.MainPage)
 	registerHandler(mux, "GET /assets/htmx.min.js", handler.Htmx)
 
-	campaignHandler := handler.NewCampaignHandler(&m)
+	campaignHandler := handler.NewCampaignHandler(ctx, db)
 
 	// if _, ok := req.Header[http.CanonicalHeaderKey("HX-Request")]; !ok {
 	// 	MainPage(w, req)
@@ -32,7 +50,7 @@ func Run(ctx context.Context) error {
 	registerHandler(mux, "GET /campaign", campaignHandler.List)
 	registerHandler(mux, "GET /campaign/create-form", campaignHandler.CreateForm)
 	registerHandler(mux, "POST /campaign", campaignHandler.Create)
-	registerHandler(mux, "GET /campaign/{id}", http.NotFound)
+	registerHandler(mux, "GET /campaign/{id}", campaignHandler.Detail)
 	registerHandler(mux, "GET /campaign/{id}/update", http.NotFound)
 	registerHandler(mux, "POST /campaign/{id}", http.NotFound)
 	registerHandler(mux, "GET /campaign/{id}/delete", http.NotFound)
